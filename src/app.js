@@ -7,6 +7,7 @@ const port = 2000;
 
 app.use(express.json());
 
+// Create a new user
 app.post("/signup", async (req, res) => {
 
     //console.log(req.body);
@@ -29,7 +30,7 @@ app.post("/signup", async (req, res) => {
     }
 });
 
-// Get userby email
+// Get user by email
 app.get("/user", async (req, res) => {
     const userEmail = req.body.emailId;
 
@@ -51,6 +52,32 @@ app.get("/feed", async (req, res) => {
     try {
         const users = await User.find({});
         res.send(users);
+    } catch (err) {
+        res.status(400).send("Something went wrong!");
+    }
+});
+
+// Delete a user by ID
+app.delete("/user", async (req, res) => {
+    const userId = req.body.userId;
+
+    try {
+        const user = await User.findByIdAndDelete({_id: userId});
+        //const user = await User.findByIdAndDelete(userId);
+        res.send("User deleted successfully:");
+    } catch (err) {
+        res.status(400).send("Something went wrong!");
+    }
+});
+
+// Update a user by ID
+app.patch("/user", async (req, res) => {
+    const userId = req.body.userId;
+    const data = req.body;
+
+    try {
+        const user = await User.findByIdAndUpdate({_id: userId}, data);
+        res.send("User updated successfully!")
     } catch (err) {
         res.status(400).send("Something went wrong!");
     }
