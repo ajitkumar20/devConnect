@@ -3,13 +3,14 @@ const connectDB = require("./config/database");
 const User = require("./models/user");
 const {validateSignUpData} = require("./utils/validation");
 const bcrypt = require("bcrypt");
+const validator = require("validator");
 
 const app = express();
 const port = 2000;
 
 app.use(express.json());
 
-// Create a new user
+// Create a new user (SignUp)
 app.post("/signup", async (req, res) => {
     try {
         // Validation of data
@@ -27,6 +28,34 @@ app.post("/signup", async (req, res) => {
         res.send("User added successfully!");
     } catch(err) {
         res.status(400).send("ERROR: " + err.message);
+    }
+});
+
+// Login the user after registering
+app.post("/login", async (req, res) => {
+    try {
+        const {emailId, password} = req.body;
+        // Check email is valid or not
+        if(!validator.isEmail(emailId)){
+            throw new Error("Email is not valid");
+        }
+
+        // Check email is present in DB or not
+        const user = await User.findOne({emailId: emailId});
+        if(!user){
+            throw new Error("Invalid credentials!");
+        }
+
+        // Check password is valid or not
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if(isPasswordValid){
+            res.send("Login Successful!");
+        } else {
+            throw new Error("Invalid credentials!");
+        }
+
+    } catch(err) {
+        res.status(400).send("ERROR: "+ err.message);
     }
 });
 
