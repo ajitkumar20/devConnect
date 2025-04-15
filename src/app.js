@@ -6,6 +6,7 @@ const bcrypt = require("bcrypt");
 const validator = require("validator");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
+const {userAuth} = require("./middlewares/auth");
 
 const app = express();
 const port = 2000;
@@ -22,7 +23,7 @@ app.post("/signup", async (req, res) => {
         const {firstName, lastName, emailId, password} = req.body;
         // Encrypt the password
         const passwordHash = await bcrypt.hash(password, 10);
-        console.log(passwordHash);
+        //console.log(passwordHash);
 
         // Creating a new instance of the User model
         const user = new User({firstName, lastName, emailId, password: passwordHash});
@@ -50,10 +51,10 @@ app.post("/login", async (req, res) => {
         }
 
         // Check password is valid or not
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+        const isPasswordValid = await user.validatePassword(password);
         if(isPasswordValid){
             // Create the JWT token
-            const token = await jwt.sign({_id: user._id}, "DEV@Connect$790");
+            const token = await user.getJWT();
             //console.log(token);
 
             // Add the token to cookie and send the response back to the user
@@ -70,27 +71,9 @@ app.post("/login", async (req, res) => {
 });
 
 // Fetching user profile (GET)
-app.get("/profile", async (req, res) => {
+app.get("/profile", userAuth, async (req, res) => {
     try {
-        const cookie = req.cookies;
-        const {token} = cookie;
-
-        if(!token){
-            throw new Error("Invalid token");
-        }
-
-        //Validate my token
-        const decodedMessage = await jwt.verify(token, "DEV@Connect$790");
-        //console.log(decodedMessage);
-        const {_id} = decodedMessage;
-        //console.log("Logged In user is: "+ _id);
-
-        const user = await User.findById(_id);
-        if(!user){
-            throw new Error("User not found!");
-        }
-
-        //console.log(cookie);
+        const user = req.user;
         res.send(user);
 
     } catch(err) {
@@ -98,70 +81,12 @@ app.get("/profile", async (req, res) => {
     }
 });
 
-// Get user by email
-app.get("/user", async (req, res) => {
-    const userEmail = req.body.emailId;
+app.post("/sendConnectionRequest",userAuth, async (req, res) => {
+    const user = req.user;
+    // Logic of sending a connection request
+    console.log("Seending a connection request...");
 
-    try {
-        const users = await User.find({emailId: userEmail});
-        if(users.length === 0){
-            res.status(404).send("User not found!!!");
-        } else {
-            res.send(users);
-        }
-    } catch (err) {
-        res.status(400).send("Something went wrong!");
-    }
-});
-
-// Feed API - GET /feed - get all the users from the database
-app.get("/feed", async (req, res) => {
-
-    try {
-        const users = await User.find({});
-        res.send(users);
-    } catch (err) {
-        res.status(400).send("Something went wrong!");
-    }
-});
-
-// Delete a user by ID
-app.delete("/user", async (req, res) => {
-    const userId = req.body.userId;
-
-    try {
-        const user = await User.findByIdAndDelete({_id: userId});
-        //const user = await User.findByIdAndDelete(userId);
-        res.send("User deleted successfully:");
-    } catch (err) {
-        res.status(400).send("Something went wrong!");
-    }
-});
-
-// Update a user by ID
-app.patch("/user/:userId", async (req, res) => {
-    const userId = req.params?.userId;
-    const data = req.body;
-
-    try {
-        const ALLOWED_UPDATES = ["photoUrl", "about", "gender", "age", "skills"];
-
-       const isUpdateAllowed = Object.keys(data).every((k) => ALLOWED_UPDATES.includes(k));
-
-       if(!isUpdateAllowed){
-        throw new Error("Update not allowed!");
-       }
-
-       if(data?.skills.length > 15){
-        throw new Error("Skills cannot be more than 15");
-       }
-
-        const user = await User.findByIdAndUpdate({_id: userId}, data, {returnDocument: "after", runValidators: true});
-        //console.log(user) - return the document after/before changes made
-        res.send("User updated successfully!")
-    } catch (err) {
-        res.status(400).send("Something went wrong: "+ err.message);
-    }
+    res.send(user.firstName+" sent you connection request");
 });
 
 connectDB().then(() => {

@@ -1,29 +1,29 @@
-// Handling Auth middleware for all GET, POST, DELETE... requests
-const adminAuth = (req, res, next) => {
-    // Logic of checking if the request is authorized
-    console.log("Admin auth is getting checked...");
-    const token = "xyz";
-    const isAdminAuthorized = "xyz" === token;
-    if(!isAdminAuthorized){
-        res.status(404).send("Unauthorized Admin Access!!!");
-    }else {
-        next();
-    }
-};
+const jwt = require("jsonwebtoken");
+const User = require("../models/user");
 
-const userAuth = (req, res, next) => {
-    // Logic of checking if the request is authorized
-    console.log("User auth is getting checked...");
-    const token = "xyza";
-    const isUserAuthorized = "xyz" === token;
-    if(!isUserAuthorized){
-        res.status(404).send("Unauthorized User Access!!!");
-    }else {
+const userAuth = async (req, res, next) => {
+    try {
+        // Read the token from req cookies
+        const {token} = req.cookies;
+        if(!token){
+            throw new Error("Token is not valid!!!");
+        }
+
+        const decodedObj = await jwt.verify(token, "DEV@Connect$790");
+        const {_id} = decodedObj;
+
+        const user = await User.findById(_id);
+        if(!user){
+            throw new Error("User not found!");
+        }
+
+        req.user = user;
         next();
+    } catch(err) {
+        res.status(400).send("ERROR: "+ err.message);
     }
 };
 
 module.exports = {
-    adminAuth,
     userAuth,
 };
