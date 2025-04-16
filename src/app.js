@@ -1,12 +1,6 @@
 const express = require("express");
 const connectDB = require("./config/database");
-const User = require("./models/user");
-const {validateSignUpData} = require("./utils/validation");
-const bcrypt = require("bcrypt");
-const validator = require("validator");
 const cookieParser = require("cookie-parser");
-const jwt = require("jsonwebtoken");
-const {userAuth} = require("./middlewares/auth");
 
 const app = express();
 const port = 2000;
@@ -14,80 +8,13 @@ const port = 2000;
 app.use(express.json());
 app.use(cookieParser());
 
-// Create a new user (SignUp)
-app.post("/signup", async (req, res) => {
-    try {
-        // Validation of data
-        validateSignUpData(req);
+const authRouter = require("./routes/auth");
+const profileRouter = require("./routes/profile");
+const requestRouter = require("./routes/request");
 
-        const {firstName, lastName, emailId, password} = req.body;
-        // Encrypt the password
-        const passwordHash = await bcrypt.hash(password, 10);
-        //console.log(passwordHash);
-
-        // Creating a new instance of the User model
-        const user = new User({firstName, lastName, emailId, password: passwordHash});
-
-        await user.save();
-        res.send("User added successfully!");
-    } catch(err) {
-        res.status(400).send("ERROR: " + err.message);
-    }
-});
-
-// Login the user after registering
-app.post("/login", async (req, res) => {
-    try {
-        const {emailId, password} = req.body;
-        // Check email is valid or not
-        if(!validator.isEmail(emailId)){
-            throw new Error("Email is not valid");
-        }
-
-        // Check email is present in DB or not
-        const user = await User.findOne({emailId: emailId});
-        if(!user){
-            throw new Error("Invalid credentials!");
-        }
-
-        // Check password is valid or not
-        const isPasswordValid = await user.validatePassword(password);
-        if(isPasswordValid){
-            // Create the JWT token
-            const token = await user.getJWT();
-            //console.log(token);
-
-            // Add the token to cookie and send the response back to the user
-            res.cookie("token", token);
-
-            res.send("Login Successful!");
-        } else {
-            throw new Error("Invalid credentials!");
-        }
-
-    } catch(err) {
-        res.status(400).send("ERROR: "+ err.message);
-    }
-});
-
-// Fetching user profile (GET)
-app.get("/profile", userAuth, async (req, res) => {
-    try {
-        const user = req.user;
-        res.send(user);
-
-    } catch(err) {
-        res.status(400).send("ERROR: "+ err.message);
-    }
-});
-
-app.post("/sendConnectionRequest",userAuth, async (req, res) => {
-    const user = req.user;
-    // Logic of sending a connection request
-    console.log("Seending a connection request...");
-
-    res.send(user.firstName+" sent you connection request");
-});
+app.use("/", authRouter);
+app.use("/", profileRouter);
+app.use("/", requestRouter);
 
 connectDB().then(() => {
     console.log("Database connected successfully!");
